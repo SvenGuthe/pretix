@@ -9,16 +9,13 @@ services:
       - postgres
       - pgadmin
       - redis
-      - smtp
     volumes:
       - ./pretix/data:/data
       - ./pretix/conf:/etc/pretix
     ports:
       - 80:80
     networks:
-      - web
       - stack_network
-      - postgres
 
   postgres:
     container_name: postgres_container
@@ -28,11 +25,10 @@ services:
       POSTGRES_PASSWORD: password
       PGDATA: /data/postgres
     volumes:
-       - ./pretix/postgres:/data/postgres
+       - db_volume:/data/postgres
     ports:
       - "5432:5432"
     networks:
-      - postgres
       - stack_network
     restart: unless-stopped
   
@@ -46,29 +42,18 @@ services:
     ports:
       - "5050:80"
     networks:
-      - postgres
       - stack_network 
     restart: unless-stopped
   redis:
     image: redis:latest
     restart: always
     networks:
-      - postgres
-      - stack_network
-
-  smtp:
-    image: namshi/smtp
-    container_name: smtp_relay
-    restart: always
-    ports:
-     - "25:25"
-    networks:
       - stack_network
 
 networks:
-  postgres:
-    driver: bridge
-  web:
-    external: true
   stack_network:
+    driver: bridge
+
+volumes:
+  db_volume:
     external: false
