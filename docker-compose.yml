@@ -1,46 +1,73 @@
 version: '3'
 
 services:
-
   pretix:
     image: 'pretix/standalone:stable'
     container_name: pretix_app
     restart: always 
     depends_on:
-      - db
+      - postgres
+      - pgadmin
       - redis
+      - smtp
     volumes:
-      - /mnt/docker/pretix/data:/data
-      - /mnt/docker/pretix/conf:/etc/pretix
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=web"
-      - "traefik.frontend.rule=Host:tickets.chaostreff-flensburg.de" 
-      - "traefik.port=80"
+      - ./pretix/data:/data
+      - ./pretix/conf:/etc/pretix
+    ports:
+      - 80:80
     networks:
       - web
       - stack_network
+      - postgres
 
-  db:
-    image: mariadb:10
-    restart: always
+  postgres:
+    container_name: postgres_container
+    image: postgres
     environment:
-      - MYSQL_RANDOM_ROOT_PASSWORD=true 
-      - MYSQL_DATABASE=db
-      - MYSQL_USER=db
-      - MYSQL_PASSWORD=db
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      PGDATA: /data/postgres
     volumes:
-      - /mnt/docker/pretix/mariadb:/var/lib/mysql
+       - ./pretix/postgres:/data/postgres
+    ports:
+      - "5432:5432"
     networks:
+      - postgres
       - stack_network
+    restart: unless-stopped
   
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    networks:
+      - postgres
+      - stack_network 
+    restart: unless-stopped
   redis:
     image: redis:latest
     restart: always
     networks:
+      - postgres
       - stack_network
 
-networks: 
+  smtp:
+    image: namshi/smtp
+    container_name: smtp_relay
+    restart: always
+    ports:
+     - "25:25"
+    networks:
+      - stack_network
+
+networks:
+  postgres:
+    driver: bridge
   web:
     external: true
   stack_network:
